@@ -5,7 +5,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     
-    # 1. This tells all 'run' commands to execute inside your app folder
+    # This ensures all manual 'run' commands execute inside your app folder
     defaults:
       run:
         working-directory: ./hyperlocal-customer-web-app
@@ -19,29 +19,23 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          # 2. FIXED: Pointing exactly to where your lock file is
-          cache-dependency-path: './hyperlocal-customer-web-app/package-lock.json'
+          # CRITICAL FIX: Tell the action where the lock file is located
+          cache-dependency-path: 'hyperlocal-customer-web-app/package-lock.json'
 
       - name: Install Dependencies
-        # 3. 'npm ci' is cleaner for production builds than 'npm install'
+        # 'npm ci' is faster and more reliable for CI/CD builds
         run: npm ci 
 
       - name: Build Next.js App
         run: npm run build
 
-      - name: Prepare Standalone Artifact
-        # 4. If using 'output: standalone', we must move static/public files 
-        # so they are included in the final zip.
-        run: |
-          mkdir -p .next/standalone/public
-          mkdir -p .next/standalone/.next/static
-          cp -r public/. .next/standalone/public/ || true
-          cp -r .next/static/. .next/standalone/.next/static/ || true
-
-      - name: Upload Production Build
+      - name: Archive Production Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nextjs-standalone-build
-          # 5. Path relative to the working-directory
-          path: hyperlocal-customer-web-app/.next/standalone
-          retention-days: 7
+          name: nextjs-build
+          # IMPORTANT: Upload paths must be relative to the repository root
+          path: |
+            hyperlocal-customer-web-app/.next/
+            hyperlocal-customer-web-app/public/
+            hyperlocal-customer-web-app/package.json
+            hyperlocal-customer-web-app/next.config.js
