@@ -4,26 +4,44 @@ on: [workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # 1. This tells all 'run' commands to execute inside your app folder
+    defaults:
+      run:
+        working-directory: ./hyperlocal-customer-web-app
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm' # This caches your node_modules automatically
+          cache: 'npm'
+          # 2. FIXED: Pointing exactly to where your lock file is
+          cache-dependency-path: './hyperlocal-customer-web-app/package-lock.json'
 
-      - name: Install & Build
+      - name: Install Dependencies
+        # 3. 'npm ci' is cleaner for production builds than 'npm install'
+        run: npm ci 
+
+      - name: Build Next.js App
+        run: npm run build
+
+      - name: Prepare Standalone Artifact
+        # 4. If using 'output: standalone', we must move static/public files 
+        # so they are included in the final zip.
         run: |
-          npm ci # 'ci' is faster and more reliable than 'install' in CI/CD
-          npm run build
+          mkdir -p .next/standalone/public
+          mkdir -p .next/standalone/.next/static
+          cp -r public/. .next/standalone/public/ || true
+          cp -r .next/static/. .next/standalone/.next/static/ || true
 
-      - name: Archive Production Artifact
+      - name: Upload Production Build
         uses: actions/upload-artifact@v4
         with:
-          name: nextjs-build
-          # This path includes everything needed to run the server
-          path: |
-            .next/standalone
-            .next/static
-            public/
+          name: nextjs-standalone-build
+          # 5. Path relative to the working-directory
+          path: hyperlocal-customer-web-app/.next/standalone
+          retention-days: 7
